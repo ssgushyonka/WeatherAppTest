@@ -227,7 +227,6 @@ final class ViewController: UIViewController {
     }
 
     private func updateUI(with weather: WeatherResponse) {
-
         locationLabel.text = "\(weather.location.name)"
         temperatureLabel.text = "\(Int(weather.current.temperatureC))°"
         conditionLabel.text = weather.current.condition.text
@@ -246,16 +245,30 @@ final class ViewController: UIViewController {
         detailsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         let details = [
-            ("Wind", "- km/h"),
-            ("Humidity", "-%"),
-            ("Pressure", "- mb"),
-            ("Visibility", "- km")
+            ("Wind", "\(Int(weather.current.windKph)) km/h"),
+            ("Humidity", "\(weather.current.humidity)%"),
+            ("Pressure", "\(Int(weather.current.pressureMb)) mb"),
+            ("Visibility", "\(weather.current.visibilityKm) km")
         ]
 
         for (title, value) in details {
-            let detailView = WeatherDetailView()
-            detailView.configure(title: title, value: value)
-            detailsStack.addArrangedSubview(detailView)
+            let titleLabel = UILabel()
+            titleLabel.text = title
+            titleLabel.textColor = .gray
+            titleLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+            titleLabel.textAlignment = .center
+
+            let valueLabel = UILabel()
+            valueLabel.text = value
+            valueLabel.font = UIFont.systemFont(ofSize: 16)
+            valueLabel.textAlignment = .center
+
+            let verticalStack = UIStackView(arrangedSubviews: [titleLabel, valueLabel])
+            verticalStack.axis = .vertical
+            verticalStack.alignment = .center
+            verticalStack.spacing = 2
+
+            detailsStack.addArrangedSubview(verticalStack)
         }
     }
 

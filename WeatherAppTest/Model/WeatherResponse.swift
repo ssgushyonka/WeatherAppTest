@@ -15,10 +15,18 @@ struct Location: Codable {
 struct CurrentWeather: Codable {
     let temperatureC: Double
     let condition: Condition
+    let windKph: Double
+    let humidity: Int
+    let pressureMb: Double
+    let visibilityKm: Double
 
     enum CodingKeys: String, CodingKey {
         case temperatureC = "temp_c"
         case condition
+        case windKph = "wind_kph"
+        case humidity
+        case pressureMb = "pressure_mb"
+        case visibilityKm = "vis_km"
     }
 }
 
