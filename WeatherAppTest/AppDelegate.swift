@@ -3,7 +3,7 @@
 //  WeatherAppTest
 //
 //  Created by Элина Борисова on 14.05.2025.
-//
+// swiftlint:disable all
 
 import UIKit
 
