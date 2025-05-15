@@ -3,7 +3,7 @@ import CoreLocation
 
 final class ViewController: UIViewController {
     private let viewModel = WeatherViewModel()
-    private var shouldShowLocationAlert = false
+    private let locationManager = LocationManager()
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -22,9 +22,7 @@ final class ViewController: UIViewController {
     private let weatherIcon = UIImageView()
     private let feelsLikeLabel = UILabel()
     private let detailsStack = UIStackView()
-
-    private let locationManager = CLLocationManager()
-    private let geoCoder = CLGeocoder()
+    private let dailyTableView = UITableView()
 
     private let hourlyCollectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
@@ -36,57 +34,18 @@ final class ViewController: UIViewController {
         return collectionView
     }()
 
-    private let dailyTableView = UITableView()
-
     override func viewDidLoad() {
         super.viewDidLoad()
         setupViews()
         setupConstraints()
         bindViewModel()
-        viewModel.requestLocation()
-    }
-
-    private var didRequestLocation = false
-    private let geocoder = CLGeocoder()
-       private var didHandleLocationPermission = false
-
-       override func viewDidAppear(_ animated: Bool) {
-           super.viewDidAppear(animated)
-           if !didHandleLocationPermission {
-               checkLocationAuthorization()
-           }
-       }
-
-    private func checkLocationAuthorization() {
         locationManager.delegate = self
-
-        switch locationManager.authorizationStatus {
-        case .restricted, .denied:
-            fallbackToMoscow()
-        case .authorizedWhenInUse, .authorizedAlways:
-            requestCurrentLocation()
-        case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
-        @unknown default:
-            fallbackToMoscow()
-        }
-
-        didHandleLocationPermission = true
+        locationManager.checkAuthorizationStatus()
     }
 
-       private func requestCurrentLocation() {
-           if #available(iOS 14.0, *) {
-               locationManager.requestTemporaryFullAccuracyAuthorization(withPurposeKey: "WeatherAppAccuracy") { _ in
-                   self.locationManager.requestLocation()
-               }
-           } else {
-               locationManager.requestLocation()
-           }
-       }
-
-       private func fallbackToMoscow() {
-           viewModel.fetchWeather(for: "Moscow")
-       }
+    private func fallbackToMoscow() {
+        viewModel.fetchWeather(for: "Moscow")
+    }
 
     private func setupViews() {
         view.backgroundColor = .white
@@ -324,7 +283,7 @@ final class ViewController: UIViewController {
 
     @objc private func retryTapped() {
         errorView.isHidden = true
-        viewModel.requestLocation()
+        locationManager.checkAuthorizationStatus()
     }
 }
 
@@ -366,25 +325,27 @@ extension ViewController: UITableViewDataSource, UITableViewDelegate {
         return "7-Day Forecast"
     }
 }
-// MARK: - Location manager
-extension ViewController: CLLocationManagerDelegate {
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        switch manager.authorizationStatus {
+
+// MARK: - Location Manager Delegate
+extension ViewController: LocationManagerDelegate {
+    func didUpdateLocation(_ location: CLLocation) {
+        let coords = "\(location.coordinate.latitude),\(location.coordinate.longitude)"
+        viewModel.fetchWeather(for: coords)
+    }
+
+    func didFailWithError(_ error: Error) {
+        print("Location error: \(error.localizedDescription)")
+        fallbackToMoscow()
+    }
+
+    func didChangeAuthorization(_ status: CLAuthorizationStatus) {
+        switch status {
         case .authorizedWhenInUse, .authorizedAlways:
-            requestCurrentLocation()
+            locationManager.requestLocation()
         case .denied, .restricted:
             fallbackToMoscow()
         default:
             break
         }
-    }
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.first else { return }
-        let coords = "\(location.coordinate.latitude),\(location.coordinate.longitude)"
-        viewModel.fetchWeather(for: coords)
-    }
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location error: \(error.localizedDescription)")
-        fallbackToMoscow()
     }
 }
