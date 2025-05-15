@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict/>
+	<key>WeatherAppAccuracy</key>
+	<string>Точное местоположение нужно для корректного определения вашего города</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Приложению нужен доступ к вашей геопозиции для показа погоды в вашем городе</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
