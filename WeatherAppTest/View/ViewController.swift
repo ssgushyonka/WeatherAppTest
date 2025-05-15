@@ -3,6 +3,7 @@ import CoreLocation
 
 final class ViewController: UIViewController {
     private let viewModel = WeatherViewModel()
+    private var shouldShowLocationAlert = false
 
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -22,14 +23,17 @@ final class ViewController: UIViewController {
     private let feelsLikeLabel = UILabel()
     private let detailsStack = UIStackView()
 
+    private let locationManager = CLLocationManager()
+    private let geoCoder = CLGeocoder()
+
     private let hourlyCollectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .horizontal
         layout.itemSize = CGSize(width: 60, height: 100)
-        let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        cv.showsHorizontalScrollIndicator = false
-        cv.backgroundColor = .clear
-        return cv
+        let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        collectionView.showsHorizontalScrollIndicator = false
+        collectionView.backgroundColor = .clear
+        return collectionView
     }()
 
     private let dailyTableView = UITableView()
@@ -42,8 +46,50 @@ final class ViewController: UIViewController {
         viewModel.requestLocation()
     }
 
+    private var didRequestLocation = false
+    private let geocoder = CLGeocoder()
+       private var didHandleLocationPermission = false
+
+       override func viewDidAppear(_ animated: Bool) {
+           super.viewDidAppear(animated)
+           if !didHandleLocationPermission {
+               checkLocationAuthorization()
+           }
+       }
+
+    private func checkLocationAuthorization() {
+        locationManager.delegate = self
+
+        switch locationManager.authorizationStatus {
+        case .restricted, .denied:
+            fallbackToMoscow()
+        case .authorizedWhenInUse, .authorizedAlways:
+            requestCurrentLocation()
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        @unknown default:
+            fallbackToMoscow()
+        }
+
+        didHandleLocationPermission = true
+    }
+
+       private func requestCurrentLocation() {
+           if #available(iOS 14.0, *) {
+               locationManager.requestTemporaryFullAccuracyAuthorization(withPurposeKey: "WeatherAppAccuracy") { _ in
+                   self.locationManager.requestLocation()
+               }
+           } else {
+               locationManager.requestLocation()
+           }
+       }
+
+       private func fallbackToMoscow() {
+           viewModel.fetchWeather(for: "Moscow")
+       }
+
     private func setupViews() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = .white
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
@@ -99,7 +145,10 @@ final class ViewController: UIViewController {
         detailsStack.axis = .horizontal
         detailsStack.distribution = .fillEqually
         detailsStack.spacing = 8
+        setupSubViews()
+    }
 
+    private func setupSubViews() {
         let currentWeatherStack = UIStackView(
             arrangedSubviews: [
                 locationLabel,
@@ -132,6 +181,7 @@ final class ViewController: UIViewController {
         contentView.addSubview(dailyTableView)
     }
 
+    // MARK: - Set up constraints
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -175,7 +225,7 @@ final class ViewController: UIViewController {
         ])
 
         guard let currentWeatherStack = currentWeatherView.subviews.first as? UIStackView else {
-            fatalError("Expected a UIStackView as the first subview of currentWeatherView")
+            fatalError("Expected a UIStackView")
         }
         currentWeatherStack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -314,5 +364,27 @@ extension ViewController: UITableViewDataSource, UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         return "7-Day Forecast"
+    }
+}
+// MARK: - Location manager
+extension ViewController: CLLocationManagerDelegate {
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            requestCurrentLocation()
+        case .denied, .restricted:
+            fallbackToMoscow()
+        default:
+            break
+        }
+    }
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.first else { return }
+        let coords = "\(location.coordinate.latitude),\(location.coordinate.longitude)"
+        viewModel.fetchWeather(for: coords)
+    }
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Location error: \(error.localizedDescription)")
+        fallbackToMoscow()
     }
 }

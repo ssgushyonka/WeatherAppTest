@@ -16,42 +16,40 @@ final class WeatherViewModel: NSObject {
         locationManager.requestLocation()
     }
 
-    private func fetchWeather(for query: String) {
-        onLoading?(true)
-        let urlString = "https://api.weatherapi.com/v1/forecast.json?key=\(apiKey)&q=\(query)&days=7&aqi=no&alerts=no"
+    func fetchWeather(for location: String) {
+            onLoading?(true)
+            let urlString =
+        "https://api.weatherapi.com/v1/forecast.json?key=\(apiKey)&q=\(location)&days=7&aqi=no&alerts=no"
 
-        guard let url = URL(string: urlString) else { return }
-        URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            DispatchQueue.main.async {
-                self?.onLoading?(false)
-            }
-
-            if let error = error {
-                DispatchQueue.main.async {
-                    self?.onError?("Network error: \(error.localizedDescription)")
-                }
+            guard let encodedURLString = urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                  let url = URL(string: encodedURLString) else {
+                onError?("Invalid location")
                 return
             }
 
-            guard let data = data else {
+            URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
                 DispatchQueue.main.async {
-                    self?.onError?("No data returned")
-                }
-                return
-            }
+                    self?.onLoading?(false)
 
-            do {
-                let weather = try JSONDecoder().decode(WeatherResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self?.onUpdate?(weather)
+                    if let error = error {
+                        self?.onError?("Ошибка сети: \(error.localizedDescription)")
+                        return
+                    }
+
+                    guard let data = data else {
+                        self?.onError?("Нет данных")
+                        return
+                    }
+
+                    do {
+                        let weather = try JSONDecoder().decode(WeatherResponse.self, from: data)
+                        self?.onUpdate?(weather)
+                    } catch {
+                        self?.onError?("Ошибка обработки данных")
+                    }
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    self?.onError?("Failed to decode response")
-                }
-            }
-        }.resume()
-    }
+            }.resume()
+        }
 }
 
 extension WeatherViewModel: CLLocationManagerDelegate {
